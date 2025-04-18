@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+# Configurações sensíveis do Firebase
+/android/app/google-services.json
+/ios/Runner/GoogleService-Info.plist
+/web/firebase-config.js
+
+# Arquivos gerados automaticamente
+.firebase/
+firebase-debug.log
+firestore-debug.log
+google-service.json
