@@ -29,10 +29,11 @@ class AuthPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () => _controller.signUp(
-                _emailController.text,
-                _passwordController.text,
-              ),
+              onPressed:
+                  () => _controller.login(
+                    _emailController.text,
+                    _passwordController.text,
+                  ),
               child: const Text('Cadastrar'),
             ),
           ],
