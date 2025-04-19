@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:task_manager/core/routes/routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:task_manager/core/routes/routes.dart';
+import 'package:task_manager/modules/tasks/controllers/task_controller.dart';
+import 'package:task_manager/modules/tasks/controllers/task_search_delegate.dart';
 
 class TaskListPage extends StatelessWidget {
-  const TaskListPage({super.key});
+  TaskListPage({super.key});
+
+  final TaskController controller = Get.put(TaskController());
 
   @override
   Widget build(BuildContext context) {
@@ -12,8 +16,26 @@ class TaskListPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Minhas Tarefas'),
         actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.filter_list), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              showSearch(
+                context: context,
+                delegate: TaskSearchDelegate(controller),
+              );
+            },
+          ),
+          Obx(
+            () => IconButton(
+              icon: Icon(
+                controller.showFavoritesOnly.value
+                    ? Icons.filter_alt
+                    : Icons.filter_alt_outlined,
+                color: controller.showFavoritesOnly.value ? Colors.amber : null,
+              ),
+              onPressed: controller.toggleFavoriteFilter,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => Get.offNamed(Routes.AUTH),
@@ -24,68 +46,89 @@ class TaskListPage extends StatelessWidget {
         onPressed: () => _showAddTaskDialog(context),
         child: const Icon(Icons.add),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('tasks')
-                .orderBy('createdAt', descending: true)
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Obx(() {
+        return StreamBuilder<QuerySnapshot>(
+          stream: controller.tasksStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          final tasks = snapshot.data?.docs ?? [];
+            final tasks = snapshot.data?.docs ?? [];
 
-          if (tasks.isEmpty) {
-            return const Center(child: Text('Nenhuma tarefa encontrada.'));
-          }
-          return ListView.builder(
-            // Tem
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              final data = task.data() as Map<String, dynamic>;
-              return Card(
-                child: ListTile(
-                  title: Text(data['title'] ?? ''),
-                  subtitle: Text(data['description'] ?? ''),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          data['favorite'] == true
-                              ? Icons.star
-                              : Icons.star_border,
-                        ),
-                        onPressed: () {
-                          task.reference.update({
-                            'favorite': !(data['favorite'] ?? false),
-                          });
-                        },
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          data['completed'] == true
-                              ? Icons.check_box
-                              : Icons.check_box_outline_blank,
-                        ),
-                        onPressed: () {
-                          task.reference.update({
-                            'completed': !(data['completed'] ?? false),
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  onTap: () => _showEditTaskDialog(context, task.id, data),
+            // Aplica busca manual, já que Firestore não tem contains
+            final filteredTasks = tasks.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final title = (data['title'] ?? '').toString().toLowerCase();
+              return title.contains(controller.searchQuery.value.toLowerCase());
+            }).toList();
+
+            if (filteredTasks.isEmpty) {
+              return Center(
+                child: Text(
+                  controller.showFavoritesOnly.value
+                      ? 'Nenhuma tarefa favorita encontrada.'
+                      : 'Nenhuma tarefa encontrada.',
                 ),
               );
-            },
-          );
-        },
-      ),
+            }
+
+            return ListView.builder(
+              itemCount: filteredTasks.length,
+              itemBuilder: (context, index) {
+                final task = filteredTasks[index];
+                final data = task.data() as Map<String, dynamic>;
+
+                return Card(
+                  child: ListTile(
+                    title: Text(data['title'] ?? ''),
+                    subtitle: Text(data['description'] ?? ''),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            data['favorite'] == true
+                                ? Icons.star
+                                : Icons.star_border,
+                            color:
+                                data['favorite'] == true ? Colors.amber : null,
+                          ),
+                          onPressed: () {
+                            task.reference.update({
+                              'favorite': !(data['favorite'] ?? false),
+                            });
+                          },
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            data['completed'] == true
+                                ? Icons.check_box
+                                : Icons.check_box_outline_blank,
+                          ),
+                          onPressed: () {
+                            task.reference.update({
+                              'completed': !(data['completed'] ?? false),
+                            });
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            controller.deleteTask(task.id);
+                          },
+                        ),
+                      ],
+                    ),
+                    onTap: () =>
+                        _showEditTaskDialog(context, task.id, data),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      }),
     );
   }
 
@@ -180,9 +223,9 @@ class TaskListPage extends StatelessWidget {
                     .collection('tasks')
                     .doc(taskId)
                     .update({
-                      'title': titleController.text,
-                      'description': descriptionController.text,
-                    });
+                  'title': titleController.text,
+                  'description': descriptionController.text,
+                });
                 Navigator.pop(context);
               },
               child: const Text('Salvar'),
