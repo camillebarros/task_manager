@@ -3,11 +3,28 @@ import 'package:task_manager/modules/tasks/controllers/task_controller.dart';
 
 class TaskSearchDelegate extends SearchDelegate {
   final TaskController controller;
+  final List<String> searchHistory = [];
 
   TaskSearchDelegate(this.controller);
 
   @override
   String get searchFieldLabel => 'Buscar tarefas...';
+
+  @override
+  ThemeData appBarTheme(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.copyWith(
+      appBarTheme: theme.appBarTheme.copyWith(
+        backgroundColor: theme.scaffoldBackgroundColor,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        hintStyle: theme.textTheme.titleMedium?.copyWith(
+          color: theme.hintColor,
+        ),
+        border: InputBorder.none,
+      ),
+    );
+  }
 
   @override
   List<Widget>? buildActions(BuildContext context) {
@@ -19,7 +36,7 @@ class TaskSearchDelegate extends SearchDelegate {
             query = '';
             controller.updateSearch('');
           },
-        )
+        ),
     ];
   }
 
@@ -36,14 +53,37 @@ class TaskSearchDelegate extends SearchDelegate {
 
   @override
   Widget buildResults(BuildContext context) {
+    if (query.isNotEmpty && !searchHistory.contains(query)) {
+      searchHistory.add(query);
+    }
+
     controller.updateSearch(query);
-    close(context, null);
-    return const SizedBox(); // Nada visível, mas atualiza a busca no controller
+    return _buildSearchResults();
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    // Você pode adicionar sugestões baseadas em histórico ou palavras-chave aqui
-    return const SizedBox();
+    final suggestions =
+        searchHistory.where((item) {
+          return item.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        return ListTile(
+          leading: const Icon(Icons.history),
+          title: Text(suggestions[index]),
+          onTap: () {
+            query = suggestions[index];
+            showResults(context);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchResults() {
+    return const SizedBox(); 
   }
 }
