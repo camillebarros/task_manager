@@ -30,7 +30,7 @@ class AuthPage extends StatelessWidget {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed:
-                  () => _controller.login(
+                  () => _controller.signIn(
                     _emailController.text,
                     _passwordController.text,
                   ),
