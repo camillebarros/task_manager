@@ -18,17 +18,18 @@ class TaskController extends GetxController {
 
       if (showFavoritesOnly.value) {
         query = query.where('favorite', isEqualTo: true);
-      } else {
-        query = query.where('favorite', whereIn: [true, false]);
       }
 
       if (searchQuery.value.isNotEmpty) {
         query = query
+            .orderBy('title')
             .where('title', isGreaterThanOrEqualTo: searchQuery.value)
             .where('title', isLessThan: searchQuery.value + 'z');
+      } else {
+        query = query.orderBy('createdAt', descending: true);
       }
 
-      return query.orderBy('createdAt', descending: true).snapshots();
+      return query.snapshots();
     } catch (e) {
       errorMessage.value = 'Erro ao carregar tarefas: $e';
       return const Stream.empty();

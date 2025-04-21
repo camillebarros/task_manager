@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:task_manager/core/routes/routes.dart';
+import 'package:task_manager/core/themes/app_theme.dart';
 import 'package:task_manager/modules/tasks/controllers/task_controller.dart';
 import 'package:task_manager/modules/tasks/views/task_dialog.dart';
 import 'package:task_manager/modules/tasks/views/task_search_delegate.dart';
@@ -16,10 +17,34 @@ class TaskListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Minhas Tarefas'),
+        title: const Text(
+          'Minhas Tarefas',
+          style: TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.blue[800],
+        elevation: 4,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          Obx(() {
+            final themeController = Get.find<ThemeController>();
+            return IconButton(
+              icon: Icon(
+                themeController.isDarkMode.value
+                    ? Icons.light_mode_rounded
+                    : Icons.dark_mode_rounded,
+                size: 26,
+                color: Colors.white,
+              ),
+              onPressed: themeController.toggleTheme,
+              tooltip:
+                  themeController.isDarkMode.value
+                      ? 'Modo Claro'
+                      : 'Modo Escuro',
+            );
+          }),
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.search, size: 26),
             onPressed:
                 () => showSearch(
                   context: context,
@@ -32,74 +57,99 @@ class TaskListPage extends StatelessWidget {
                 controller.showFavoritesOnly.value
                     ? Icons.filter_alt
                     : Icons.filter_alt_outlined,
-                color: controller.showFavoritesOnly.value ? Colors.amber : null,
+                size: 26,
+                color:
+                    controller.showFavoritesOnly.value
+                        ? Colors.amber
+                        : Colors.white,
               ),
               onPressed: controller.toggleFavoriteFilter,
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, size: 26),
             onPressed: () => Get.offNamed(Routes.AUTH),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddTaskDialog(context),
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.blue[800],
+        elevation: 4,
+        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
       body: Obx(() {
-        // Tratamento de erros
-        if (controller.errorMessage.isNotEmpty) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(controller.errorMessage.value)),
-            );
-            controller.errorMessage.value = '';
-          });
-        }
+        final isDarkMode = Get.find<ThemeController>().isDarkMode.value;
 
-        return StreamBuilder<QuerySnapshot>(
-          stream: controller.tasksStream,
-          builder: (context, snapshot) {
-            // Estados de carregamento
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+        return Container(
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.black87 : Colors.grey[50],
+            gradient:
+                !isDarkMode
+                    ? LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.blue.shade50.withOpacity(0.1),
+                        Colors.grey[50]!,
+                      ],
+                    )
+                    : null,
+          ),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: controller.tasksStream,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation(Colors.blue),
+                  ),
+                );
+              }
 
-            // Tratamento de erros
-            if (snapshot.hasError) {
-              return _buildErrorState(snapshot.error.toString());
-            }
+              if (snapshot.hasError) {
+                return _buildErrorState(snapshot.error.toString());
+              }
 
-            final tasks = snapshot.data?.docs ?? [];
+              final tasks = snapshot.data?.docs ?? [];
 
-            // Estado vazio
-            if (tasks.isEmpty) {
-              return _buildEmptyState();
-            }
+              if (tasks.isEmpty) {
+                return _buildEmptyState();
+              }
 
-            // Lista de tarefas
-            return _buildTaskList(tasks);
-          },
+              return _buildTaskList(tasks);
+            },
+          ),
         );
       }),
     );
   }
 
-  // Widgets auxiliares
   Widget _buildErrorState(String error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Erro: $error'),
+          const Icon(Icons.error_outline, size: 50, color: Colors.red),
           const SizedBox(height: 16),
+          Text('Erro: $error', style: const TextStyle(color: Colors.red)),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               controller.showFavoritesOnly.value = false;
               controller.updateSearch('');
             },
-            child: const Text('Recarregar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[800],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Recarregar',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -111,22 +161,47 @@ class TaskListPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Icon(
+            controller.showFavoritesOnly.value
+                ? Icons.star_border_rounded
+                : Icons.task_alt_rounded,
+            size: 60,
+            color: Colors.blue[800]?.withOpacity(0.5),
+          ),
+          const SizedBox(height: 16),
           Text(
             controller.showFavoritesOnly.value
                 ? 'Nenhuma tarefa favorita encontrada'
                 : 'Nenhuma tarefa cadastrada',
+            style: TextStyle(fontSize: 18, color: Colors.grey[700]),
           ),
           if (controller.showFavoritesOnly.value) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             TextButton(
               onPressed: controller.toggleFavoriteFilter,
-              child: const Text('Ver todas as tarefas'),
+              child: Text(
+                'Ver todas as tarefas',
+                style: TextStyle(
+                  color: Colors.blue[800],
+                  decoration: TextDecoration.underline,
+                ),
+              ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => _showAddTaskDialog(Get.context!),
-            child: const Text('Criar primeira tarefa'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[800],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            child: const Text(
+              'Criar primeira tarefa',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -135,9 +210,9 @@ class TaskListPage extends StatelessWidget {
 
   Widget _buildTaskList(List<DocumentSnapshot> tasks) {
     return ListView.separated(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
       itemCount: tasks.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final task = tasks[index];
         final data = task.data() as Map<String, dynamic>;
@@ -151,11 +226,34 @@ class TaskListPage extends StatelessWidget {
           onDismissed: (_) => _handleTaskDeletion(task.id),
           child: Card(
             elevation: 2,
-            child: ListTile(
-              title: _buildTaskTitle(data),
-              subtitle: _buildTaskSubtitle(data, createdAt),
-              trailing: _buildTaskTrailing(task, data),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
               onTap: () => _showEditTaskDialog(context, task.id, data),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildTaskTitle(data)),
+                        _buildTaskTrailing(task, data),
+                      ],
+                    ),
+                    if (data['description']?.isNotEmpty ?? false) ...[
+                      const SizedBox(height: 8),
+                      _buildTaskDescription(data),
+                    ],
+                    if (createdAt != null) ...[
+                      const SizedBox(height: 8),
+                      _buildTaskDate(createdAt),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
         );
@@ -163,13 +261,16 @@ class TaskListPage extends StatelessWidget {
     );
   }
 
-  // Componentes da lista
   Widget _buildDismissibleBackground() {
     return Container(
-      color: Colors.red,
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.red[400],
+        borderRadius: BorderRadius.circular(12),
+      ),
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.only(right: 20),
-      child: const Icon(Icons.delete, color: Colors.white),
+      child: const Icon(Icons.delete_forever, color: Colors.white, size: 30),
     );
   }
 
@@ -177,26 +278,31 @@ class TaskListPage extends StatelessWidget {
     return Text(
       data['title'] ?? '',
       style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
         decoration:
             data['completed'] == true ? TextDecoration.lineThrough : null,
+        color: data['completed'] == true ? Colors.grey : Colors.black87,
       ),
     );
   }
 
-  Widget _buildTaskSubtitle(Map<String, dynamic> data, DateTime? createdAt) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildTaskDescription(Map<String, dynamic> data) {
+    return Text(
+      data['description'] ?? '',
+      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+    );
+  }
+
+  Widget _buildTaskDate(DateTime createdAt) {
+    return Row(
       children: [
-        if (data['description']?.isNotEmpty ?? false)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(data['description'] ?? ''),
-          ),
-        if (createdAt != null)
-          Text(
-            'Criada em: ${DateFormat('dd/MM/yyyy HH:mm').format(createdAt)}',
-            style: Get.textTheme.bodySmall,
-          ),
+        const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+        const SizedBox(width: 4),
+        Text(
+          DateFormat('dd/MM/yyyy HH:mm').format(createdAt),
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
       ],
     );
   }
@@ -207,8 +313,10 @@ class TaskListPage extends StatelessWidget {
       children: [
         IconButton(
           icon: Icon(
-            data['favorite'] == true ? Icons.star : Icons.star_border,
-            color: data['favorite'] == true ? Colors.amber : null,
+            data['favorite'] == true
+                ? Icons.star_rounded
+                : Icons.star_border_rounded,
+            color: data['favorite'] == true ? Colors.amber : Colors.grey,
           ),
           onPressed:
               () => controller.toggleFavoriteStatus(
@@ -219,9 +327,9 @@ class TaskListPage extends StatelessWidget {
         IconButton(
           icon: Icon(
             data['completed'] == true
-                ? Icons.check_box
-                : Icons.check_box_outline_blank,
-            color: data['completed'] == true ? Colors.green : null,
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
+            color: data['completed'] == true ? Colors.green : Colors.grey,
           ),
           onPressed:
               () => controller.toggleTaskStatus(
@@ -233,7 +341,6 @@ class TaskListPage extends StatelessWidget {
     );
   }
 
-  // Diálogos e ações
   Future<bool> _confirmDelete(BuildContext context) async {
     return await showDialog<bool>(
           context: context,
@@ -243,16 +350,22 @@ class TaskListPage extends StatelessWidget {
                 content: const Text(
                   'Tem certeza que deseja excluir esta tarefa?',
                 ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
                     child: const Text('Cancelar'),
                   ),
-                  TextButton(
+                  ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
                     child: const Text(
                       'Excluir',
-                      style: TextStyle(color: Colors.red),
+                      style: TextStyle(color: Colors.white),
                     ),
                   ),
                 ],
@@ -264,9 +377,25 @@ class TaskListPage extends StatelessWidget {
   Future<void> _handleTaskDeletion(String taskId) async {
     try {
       await controller.deleteTask(taskId);
-      Get.snackbar('Sucesso', 'Tarefa excluída com sucesso');
+      Get.snackbar(
+        'Sucesso',
+        'Tarefa excluída com sucesso',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(20),
+        borderRadius: 12,
+      );
     } catch (e) {
-      Get.snackbar('Erro', 'Falha ao excluir tarefa');
+      Get.snackbar(
+        'Erro',
+        'Falha ao excluir tarefa',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(20),
+        borderRadius: 12,
+      );
     }
   }
 
@@ -274,12 +403,17 @@ class TaskListPage extends StatelessWidget {
     showDialog(
       context: context,
       builder:
-          (context) => TaskDialog(
-            title: 'Adicionar Tarefa',
-            onSave: (title, description) {
-              controller.addTask(title, description);
-              Navigator.pop(context);
-            },
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: TaskDialog(
+              title: 'Adicionar Tarefa',
+              onSave: (title, description) {
+                controller.addTask(title, description);
+                Navigator.pop(context);
+              },
+            ),
           ),
     );
   }
@@ -292,14 +426,19 @@ class TaskListPage extends StatelessWidget {
     showDialog(
       context: context,
       builder:
-          (context) => TaskDialog(
-            title: 'Editar Tarefa',
-            initialTitle: data['title'] ?? '',
-            initialDescription: data['description'] ?? '',
-            onSave: (title, description) {
-              controller.updateTask(taskId, title, description);
-              Navigator.pop(context);
-            },
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: TaskDialog(
+              title: 'Editar Tarefa',
+              initialTitle: data['title'] ?? '',
+              initialDescription: data['description'] ?? '',
+              onSave: (title, description) {
+                controller.updateTask(taskId, title, description);
+                Navigator.pop(context);
+              },
+            ),
           ),
     );
   }
