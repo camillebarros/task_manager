@@ -57,7 +57,10 @@ class TaskSearchDelegate extends SearchDelegate {
       searchHistory.add(query);
     }
 
-    controller.updateSearch(query);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.updateSearch(query);
+    });
+
     return _buildSearchResults();
   }
 
@@ -84,6 +87,6 @@ class TaskSearchDelegate extends SearchDelegate {
   }
 
   Widget _buildSearchResults() {
-    return const SizedBox(); 
+    return const SizedBox();
   }
 }

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -7,23 +8,28 @@ class TaskController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
 
+  String get currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
+
   Stream<QuerySnapshot> get tasksStream {
     try {
-      Query query = FirebaseFirestore.instance.collection('tasks');
+      Query query = FirebaseFirestore.instance
+          .collection('tasks')
+          .where('userId', isEqualTo: currentUserId);
 
       if (showFavoritesOnly.value) {
         query = query.where('favorite', isEqualTo: true);
-      } else {
-        query = query.where('favorite', whereIn: [true, false]);
       }
 
       if (searchQuery.value.isNotEmpty) {
         query = query
+            .orderBy('title')
             .where('title', isGreaterThanOrEqualTo: searchQuery.value)
             .where('title', isLessThan: searchQuery.value + 'z');
+      } else {
+        query = query.orderBy('createdAt', descending: true);
       }
 
-      return query.orderBy('createdAt', descending: true).snapshots();
+      return query.snapshots();
     } catch (e) {
       errorMessage.value = 'Erro ao carregar tarefas: $e';
       return const Stream.empty();
@@ -44,6 +50,7 @@ class TaskController extends GetxController {
       await FirebaseFirestore.instance.collection('tasks').add({
         'title': title,
         'description': description,
+        'userId': currentUserId,
         'createdAt': Timestamp.now(),
         'completed': false,
         'favorite': false,
@@ -69,6 +76,27 @@ class TaskController extends GetxController {
       });
     } catch (e) {
       errorMessage.value = 'Erro ao atualizar tarefa: ${e.toString()}';
+      rethrow;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> clearTasks() async {
+    try {
+      isLoading.value = true;
+
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('tasks')
+              .where('userId', isEqualTo: currentUserId)
+              .get();
+
+      for (var doc in querySnapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      errorMessage.value = 'Erro ao limpar tarefas: ${e.toString()}';
       rethrow;
     } finally {
       isLoading.value = false;
