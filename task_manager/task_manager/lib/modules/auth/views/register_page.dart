@@ -47,7 +47,7 @@ class _RegisterPageState extends State<RegisterPage> {
           .set({
             'nome': nomeController.text.trim(),
             'email': emailController.text.trim(),
-            'createdAt': DateTime.now(),
+            'createdAt': Timestamp.now(), 
           });
 
       Get.offNamed(Routes.HOME);

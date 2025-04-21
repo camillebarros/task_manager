@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 import 'package:task_manager/core/routes/routes.dart';
@@ -11,10 +12,14 @@ class AuthController extends GetxController {
   // Método para registrar o usuário
   Future<void> signUp(String email, String password) async {
     try {
-      await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({'email': email, 'createdAt': FieldValue.serverTimestamp()});
+
       Get.offAllNamed(
         '/home',
       ); // Redireciona para a página inicial após o cadastro
